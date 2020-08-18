@@ -1,0 +1,205 @@
+#clone the remote repo to local
+git clone -b <branchName> "<https://urlForClone>"
+Ex:git clone -b develop https://pranav_kumar_30@bitbucket.org/pranavinc/<repositoryName>.git
+===============================================
+git diff --cached  
+git diff --staged
+-----------------------------------------------
+#Get the diff ready and can be applied on new branch:
+1> git add -A //for the file addition and deletion as well.
+2> git diff --cached > C:\Users\prakuma\Desktop\LatestWS\repo\zTemp\siteCheck.patch
+3> stash-pull-apply or clone or switch the branch and then apply the saved git diff
+4> git apply C:\Users\prakuma\Desktop\LatestWS\repo\zTemp\siteCheck.patch
+================================================================================================
+#Switching branches(new branches i.e not already present in local)
+1. git pull
+2. git branch --all or, git branch -a
+3. git checkout -b <branchName> <remotes/origin/develop  any one of shown remote branches>
+4. git branch --set-upstream-to=branch_name/your_new_remote/branch_name 
+//ex:git branch --set-upstream-to=origin/feature/createUser
+=================================================================================================
+#Switching branches(existing branches i.e already present in local)
+1. git branch -a
+2. git checkout <localBrnachName>
+3. git status -> if unwanted changes then -> git stash
+4. git pull
+========================================================================================================
+Merge Conflicts - Strategy1
+1.git remote -v
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (fetch) //<BaseUrl>/<repoName>.git
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (push)
+
+2.git remote add upstream https://bitbucket.org/aquatalkdevelopers/aq-demo/<TargetMergeBranchName>.git //<BaseUrl>/<repoName>/<TargetBranchName>.git
+
+3.git remote -v
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (fetch)
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (push)
+upstream        https://bitbucket.org/pranavinc/aq-demo/<RemoteBranchNameWherePR_will_be_Merged>.git (fetch)
+upstream        https://bitbucket.org/pranavinc/aq-demo/<RemoteBranchNameWherePR_will_be_Merged>.git (push)
+
+4.git fetch upstream
+
+5.git pull
+
+6.resolve the merge conflict in IDE
+
+7.git commit -m "resolving merge conflict"
+
+8.git push origin
+
+9.Merge the PR
+-----------------------------------------------------------------------------------------------------------------
+Merge Conflicts - Strategy2
+1.git remote -v
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (fetch) //<BaseUrl>/<repoName>.git
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (push)
+
+2.git remote add upstream https://bitbucket.org/aquatalkdevelopers/aq-demo/<TargetMergeBranchName>.git //<BaseUrl>/<repoName>/<TargetBranchName>.git
+
+3.git remote -v
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (fetch)
+origin  https://pranav_kumar_30@bitbucket.org/pranav_kumar_30/aq-demo.git (push)
+upstream        https://bitbucket.org/pranavinc/aq-demo/<RemoteBranchNameWherePR_will_be_Merged>.git (fetch)
+upstream        https://bitbucket.org/pranavinc/aq-demo/<RemoteBranchNameWherePR_will_be_Merged>.git (push)
+
+4.git fetch upstream
+
+5.git stash
+
+6.git pull upstream feature/AQUATALK-117-backend
+
+7.git stash pop
+
+8.//Solve the merge conflicts using IDE and then save the files
+
+9.//continue making changes..6.resolve the merge conflict in IDE
+
+7.git commit -m "resolving merge conflict"
+
+8.git push origin
+
+9.Merge the PR
+-------------------------------------------------------------------------------------------------------
+Alternate way to remote add:
+1.git pull
+2.git brnach -a
+3.git branch --set-upstream-to=origin/<branchName>
+--------------------------------------------------------------------------------------------------------
+Formating the last commit message without <git push>:
+1.git commit --ammend
+2.<i>
+3.update and format the message<Top Lines>
+4.<:wq>
+5.git push origin
+--------------------------------------------------------------------------------------------------------
+========================================================================================================
+In Git you can merge several commits into one with the powerful interactive rebase. 
+I usually tidy up my working space by grouping together several small intermediate commits into a single lump to push upstream.
+****************************************************************************************
+Step 1: choose your starting commit
+The first thing to do is to invoke git to start an interactive rebase session:
+------------------------------------------------------------------------------------
+>git rebase --interactive HEAD~N
+Or, shorter:
+
+>git rebase -i HEAD~N
+where N is the number of commits you want to join, starting from the most recent one. 
+--------------------------------------------------------------------------------------
+For example, this is a hypothetical list of commits taken from the git log command, 
+while I'm working on a generic feature Z:
+871adf OK, feature Z is fully implemented      --- newer commit
+0c3317 Whoops, not yet...
+87871a I'm ready!
+643d0e Code cleanup
+afb581 Fix this and that
+4e9baa Cool implementation
+d94e78 Prepare the workbench for feature Z
+6394dc Feature Y                               --- older commit
+And this is what I would like to do:
+
+871adf OK, feature Z is fully implemented      --- newer commit --┐
+0c3317 Whoops, not yet...                                         |
+87871a I'm ready!                                                 |
+643d0e Code cleanup                                               |-- Join these into one
+afb581 Fix this and that                                          |
+4e9baa Cool implementation                                        |
+d94e78 Prepare the workbench for feature Z     -------------------┘
+6394dc Feature Y                               --- older commit
+Obtaining:
+
+84d1f8 Feature Z                               --- newer commit (result of rebase)
+6394dc Feature Y                               --- older commit
+Notice how a rebase generates a new commit with a new hash (84d1f8 in the example above). 
+So in this case the command would be:
+>git rebase --interactive HEAD~[7]
+because I want to combine the last seven commits into one, and d94e78 Prepare the workbench for feature Z is the seventh one.
+
+I have tons of commits to squash, do I have to count them one by one?
+A downside of the git rebase --interactive HEAD~[N] command is that 
+you have to guess the exact number of commits, by counting them one by one. 
+Luckily, there is another way:
+
+git rebase --interactive [commit-hash]
+Where [commit-hash] is the hash of the commit just before the first one you want to rewrite from. So in my example the command would be:
+
+git rebase --interactive 6394dc
+Where 6394dc is Feature Y. You can read the whole thing as:
+Merge all my commits on top of commit [commit-hash].
+Way easier, isn't it?
+****************************************************************************************
+Step 2: picking and squashing
+At this point your editor of choice will pop up, showing the list of commits you want to merge. 
+Note that it might be confusing at first, since they are displayed in a reverse order, 
+where the older commit is on top. 
+I've added --- older commit and --- newer commit to make it clear, you won't find those notes in the editor.
+---------------------------------------------------------------------------
+pick d94e78 Prepare the workbench for feature Z     --- older commit
+pick 4e9baa Cool implementation 
+pick afb581 Fix this and that  
+pick 643d0e Code cleanup
+pick 87871a I'm ready! 
+pick 0c3317 Whoops, not yet... 
+pick 871adf OK, feature Z is fully implemented      --- newer commit
+
+[...]
+Below the commit list there is a short comment (omitted in my example) which outlines all the operations available. 
+You can do many smart tricks during an interactive rebase, 
+let's stick with the basics for now though. 
+Our task here is to mark all the commits as squashable, 
+except the first/older one: it will be used as a starting point.
+
+You mark a commit as squashable by changing the word pick into squash next to it (or s for brevity, as stated in the comments). The result would be:
+
+pick d94e78 Prepare the workbench for feature Z     --- older commit
+s 4e9baa Cool implementation 
+s afb581 Fix this and that  
+s 643d0e Code cleanup
+s 87871a I'm ready! 
+s 0c3317 Whoops, not yet... 
+s 871adf OK, feature Z is fully implemented      --- newer commit
+
+[...]
+Save the file and close the editor.
+****************************************************************************************
+Step 3: Create the new commit
+You have just told Git to combine all seven commits into the the first commit in the list. 
+It's now time to give it a name: your editor pops up again with a default message, made of the names of all the commits you have squashed.
+
+You can leave it as it is and the commit message will result in a list of all the intermediate commits, as follows:
+
+Prepare the workbench for feature Z
+Cool implementation 
+Fix this and that  
+Code cleanup
+I'm ready! 
+Whoops, not yet... 
+OK, feature Z is fully implemented
+
+Usually I don't care to keep such information, so I wipe out the default message and use something more self-explanatory like Implemented feature Z.
+========================================================================================================
+*************************************************************************************************************
+If it's only about squashing the lasts N commits, maybe the easyest way is:
+>git reset --soft HEAD~N
+#That will remove the last N commits and leaves all the changes of the commits as staged changes.
+#Then, simply commit again:
+>git commit -m"New commit message"
