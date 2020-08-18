@@ -1,0 +1,27 @@
+The * in your regex is greedy. It will capture as much as possible.
+The *? above is lazy. It will capture as little as possible. This will make your regex stop after that first match.
+-----------------------------------------------
+Ex:To filter out all the specific HttpMethods from Controller ex -RequestMethod.POST or RequestMethod.PATCH
+1. Find and Higlight All matches on any of RequestMethod.POST
+2. Delete the rest of methods
+3. remove APIResponse - (\s)+(@ApiResponse\()(.*?)(\) \}\))
+4. find in normal and remove - @ApiResponses(value = {
+5. find @Pattern and \n\t@Pattern
+-----------------------------------------------
+Common Notepad++ Regex:
+(\s)+(Line)(\s)+(\d)+(:) -> matches: <spaces> Line <Spaces>ddd: ex- Line 12: 
+1. Find all in current document -"diff --git"
+2. copy the result  and paste in another tab
+3. Find and replace all - (\s)+(Line)(\s)+(\d)+(:)(\s)+(diff --git) with ""
+4. Find - b/ and replace \nb/
+5. Find and replcae - "(a/src)(.)*(.java)(\s)+" with ""
+6. Find and replcae - "b/src" with "src"
+------------------------------------------------
+Common Java Regexes String
+------------------------------------------------
+JWTREG = "^[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_=]+\\.?[A-Za-z0-9-_.+/=]*$";
+MONGO_DB_ID_REGEX = "(^[a-zA-Z0-9]{24}$)";
+EMAILRESTRICTER = "^[A-Za-z0-9_\\-\\.%]+@[A-Za-z0-9\\-]+[\\.][A-Za-z0-9]+{2,8}$";
+BASIC_PHONE_REGEX = "^(\\d{3,4}-)?\\d{6,8}$";
+ANGLO_OR_CHINESSE_NAME_REGEX = "[a-zA-Z0-9]+[a-zA-z0-9 .]+[a-zA-Z0-9]${2,50}|^[0-9\\u4E00-\\u9FA5]+[0-9\\u4E00-\\u9FA5 ]+[0-9\\u4E00-\\u9FA5]${2,30}";
+ANGLO_OR_CHINESSE_ADDRESS_REGEX = "^[a-zA-Z0-9#][a-zA-Z0-9 .\\-#,]*[a-zA-Z0-9.]$|^[0-9\\u4E00-\\u9FA5][0-9\\u4E00-\\u9FA5 .\\-#]*[0-9\\u4E00-\\u9FA5.]$";
