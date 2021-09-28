@@ -1,0 +1,21 @@
+1. Why and What-Requirement discussions + Metrics estimations + Priotization
+2. Reuse/Standard - design/schema/models etc.
+3. Categorizing the service - [Monolith/Microservice][I/O heavy or compute heavy] [Web-service/DataAggregators/UI-Helper...].
+4. DB Schema Design w.r.t UI.[Parllel Work by UI & BE]
+5. API req/res design.
+6. Application dependency understanding-[internal vs external libs][Middle-layers: DB,Cache,Messaging,RestCalls..].
+7. Code(BusinessLogic+Framework) and Deliver 1 API at a time.[UTs,Integerations etc.]
+8. Refactor code based on sonar or after every new feature/bugs if needed.
+===================================================================================================================================
+Coding:
+Design-Pattern[Creational,Behavioural,Structural] + SOLID.[MVC->MSC]
+SYNC vs ASYNC
+Functional(BusinessLogic-SLAs) and NFR(Security,Logging,Validations,Performance etc.)
+Correct DS(JavaCollection) selection - Arrays,List,Set,Map,Tree... [Thread-safe/Normal].
+Method Design - smaller and concise responsibility with smaller parameters and may call several other smaller methods.
+===================================================================================================================================
+Start simple and then transform. 
+Ex- Start with - @Component/@Autowire, for/while loop, simple Pojo --after Testing--> 
+					BeanConfig, Java-8, Schema-Validations-Converters-Helpers.
+After experience Use them directly for faster delivery.          
+====================================================================================================================================
