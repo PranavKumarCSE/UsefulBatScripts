@@ -1,0 +1,31 @@
+###Strat from a fresh Directory and keep a common file to be copied for all repos in root of new dir
+git clone -b develop <gitCloneUrl>
+cd <repoName1>
+git push origin develop:<newBranch>
+git pull origin
+git checkout -b <newBranch> origin/<newBranch>
+copy ..\bitbucket-pipelines.yml .\ /y
+git add bitbucket-pipelines.yml
+git commit -m "<commitMessage>"
+git push origin
+
+git clone -b develop <gitCloneUrl>
+cd <repoName2>
+git push origin develop:<newBranch>
+git pull origin
+git checkout -b <newBranch> origin/<newBranch>
+copy ..\bitbucket-pipelines.yml .\ /y
+git add bitbucket-pipelines.yml
+git commit -m "<commitMessage>"
+git push origin
+
+cd ..
+git clone -b develop <gitCloneUrl>
+cd <repoName3>
+git push origin develop:<newBranch>
+git pull origin
+git checkout -b <newBranch> origin/<newBranch>
+copy ..\bitbucket-pipelines.yml .\ /y
+git add bitbucket-pipelines.yml
+git commit -m "<commitMessage>"
+git push origin
