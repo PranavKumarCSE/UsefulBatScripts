@@ -1,0 +1,334 @@
+Notes:
+1. Moving data based on aggregation among dbs from 1 host to db on another host.
+  - Use proper filters using $match and $project to collection minimum possible date for export/import.
+  - With Root access collect the data using $merge aggregation[Works if all DB are in same host] to a db named as destination[Present on Different Host].
+  - Keep in mind the temp db name should be same as final destination db on another host for import/export to create same db with existing dest privelledge.
+  - Use the Studio3t.export collection to save exportedDump on local filesys.
+  - Use the Studio3t.import collection to save exportedDump from local filesys onto destination host-db.
+2. See the use of special aggregation operators and usage:
+  - $cond:[{conditional-comparision},<result if comparison results as true>,<result if comparison results as false.>]
+    - here both conditional-comparision result should produce same Datatype of result. And else-result is mandatory. 
+    - If else doesn't makes sense then add "", -1, some value based on dataType, which can be updated later by updateMany operation.
+    
+
+
+db.getSiblingDB("aqdev-xc-ogc-service").getCollection("datastream").aggregate(
+    [
+        {
+            $match: { "companyId": { $regex: /ABC-.*/, $options: 'i' }, "observationType": "MYtype" }
+        },
+        {
+            $project: {
+                "_id": 1,
+                "name": 1,
+                "sourceParameterText": "$properties.sourceParameterText",
+                "thingName": { $arrayElemAt: [{ $split: ["$Idwith@SperatedFields", "@"] }, 2] }
+            }
+        },
+        {
+            $group: {
+                _id: "$thingName",
+                dsNamIotIdList: { $push: { dsName: "$name", dsIotId: "$_id", spt: "$spt" } }
+
+            }
+        },
+        {
+            $merge: { into: { db: "dbNameSameAsDestination", coll: "tmpDSName" } }
+
+        }
+    ]
+);
+db.getSiblingDB("dbNameSameAsDestination").getCollection("tmpDSName").aggregate(
+    [
+        {
+            $lookup:
+                {
+                    from: "tmp.instsiteCust",
+                    localField: "_id",
+                    foreignField: "equipmentIds",
+                    as: "installationDetail"
+                }
+        },
+        {
+            $replaceRoot: { newRoot: { $mergeObjects: [{ $arrayElemAt: ["$installationDetail", 0] }, "$$ROOT"] } }
+        },
+        {
+            $addFields: {
+                "dsNamIotIdList.installationName": "$installationName",
+                "dsNamIotIdList.thingName": "$_id",
+                "dsNamIotIdList.status": "$status",
+                "dsNamIotIdList.instId": { $arrayElemAt: ["$installationDetail._id", 0] },
+                "dsNamIotIdList.installationName":"$installationName",
+                "dsNamIotIdList.siteId":"$siteId"
+            }
+        },
+        {
+            $project: {_id:0, customerId:0, customerName:0,  equipmentIds: 0 }
+        },
+        {
+            $unwind:"$dsNamIotIdList"
+        },
+        {
+            $group: {
+                _id: { $concat: ["$dsNamIotIdList.instId","/","$dsNamIotIdList.dsName"] },
+                dsIotId: { $first: "$dsNamIotIdList.dsIotId" },
+                dsName: { $first: "$dsNamIotIdList.dsName" },
+				instId:{$first: "$dsNamIotIdList.instId"},
+                installationName: { $first: "$dsNamIotIdList.installationName" },
+				siteId:{$first: "$dsNamIotIdList.siteId"}
+            }
+        },
+        {
+            $match:{"_id":{$nin:[null,"undefined",""]}}
+        },
+        {
+            $merge:{ into: { db: "dbNameSameAsDestination", coll: "preparedCollection" } }
+        }
+    ]
+);    
+
+db.getSiblingDB("dbNameSameAsDestination").getCollection("tmp.instsiteCust").drop();
+db.getSiblingDB("dbNameSameAsDestination").getCollection("tmpDSName").drop();
+//Now export the final collection using studio3t.exportCollection option. 
+//And import on destinationDB it will add the preparedCollection 
+
+//Based on import the rest of aggregation can run directly on destinationDB.
+db.getCollection("collection1").aggregate([
+    {
+        $match: { "data.resultTime": { $gt: ISODate("2020-09-00T08:00:00.000+0000") } }
+    },
+    {
+        $lookup: {
+            from: "preparedCollection",
+            localField: "alarmId",
+            foreignField: "_id",
+            as: "dsDetail"
+        }
+    },
+    {
+        $addFields: { dsItoId: { $arrayElemAt: ["$dsDetail.dsIotId", 0] }, status: { $arrayElemAt: ["$dsDetail.status", 0] } }
+    },
+    {
+        $project: { dsDetail: 0 }
+    },
+    {
+        $match: { "dsItoId": { $nin: [null, ""] } }
+    },
+
+    {
+        $group:
+            {
+                _id: { $concat: [{ $toString: "$dsItoId" }, "_", { $dateToString: { format: "%Y_%m", date: "$data.resultTime", timezone: "+08:00"  } }] },
+                installationId: { $first: "$installationId" },
+                name: { $first: "$name" },
+                level: { $first: "$alarmLevel" },
+                status: { $first: "$status" },
+                set: { $push: { $toLong: "$data.resultTime" } },
+                clear: { $push: { $toLong: "$clearUpdatedAt" } },
+                acks: { $push: { time: { $toLong: "$ackUpdatedAt" }, eid: "$ackUpdatedName" } }
+            }
+    }
+    ,
+    {
+        $merge: {
+            into: "opCollection1",
+            on: "_id",
+            whenMatched: "merge",
+            whenNotMatched: "insert"
+        }
+    }
+
+]
+);
+db.getCollection("opCollection1").updateMany({},{$pull: { clear: { $in:[null]},set: { $in:[null]}}});
+db.getCollection("collection1").aggregate([
+    {
+        $match: { "data.resultTime": { $gt: ISODate("2020-09-00T08:00:00.000+0000") } }
+    },
+    {
+        $project:{"alarmId":1,"siteId":1,"installationId":1,"data.resultTime":1,"alarmLevel":1}
+    },
+    {
+        $merge:{
+            into: "alarm.tempAllAlarms",
+            on: "_id",
+            whenNotMatched: "insert",
+            whenMatched:"merge"
+        }
+    }
+]);
+
+db.getCollection("alarm.active_dt").aggregate([
+    {
+        $match: { "data.resultTime": { $gt: ISODate("2020-09-00T08:00:00.000+0000") } }
+    },
+    {
+        $project:{"alarmId":1,"siteId":1,"installationId":1,"data.resultTime":1,"alarmLevel":1}
+    },
+    {
+        $merge:{
+            into: "alarm.tempAllAlarms",
+            on: "_id",
+            whenNotMatched: "insert",
+            whenMatched:"merge"
+        }
+    }
+]);
+    
+
+db.getCollection("alarm.tempAllAlarms").aggregate([
+    {
+        $match: { "data.resultTime": { $gt: ISODate("2020-09-00T08:00:00.000+0000") } }
+    },
+    {
+        $lookup: {
+            from: "preparedCollection",
+            localField: "alarmId",
+            foreignField: "_id",
+            as: "dsDetail"
+        }
+    },
+    {
+        $addFields: {
+            dsItoId: { $arrayElemAt: ["$dsDetail.dsIotId", 0] }, status: { $arrayElemAt: ["$dsDetail.status", 0] },
+            customerId: { $arrayElemAt: ["$dsDetail.customerId", 0] }}
+        }
+    },
+    {
+        $project: { dsDetail: 0, ackUpdatedAt: 0, ackUpdatedBy: 0, ackUpdatedName: 0, clearUpdatedAt: 0, "data.datastream": 0 }
+    },
+    {
+        $match: { "dsItoId": { $nin: [null, ""] } }
+    },
+    {
+        $group: {
+            _id: "$siteId",
+            siteName: {
+                $first: "$siteName"
+            },
+            dsIdsLow: {
+                $addToSet: {
+                    $cond: [
+						{
+							$eq: ['$alarmLevel', 0]
+						},
+						{ $toString: "$dsItoId" },""
+                    ]
+                }
+            }
+            dsIdsHigh: {
+                $addToSet: {
+                    $cond: [
+						{
+							$eq: ['$alarmLevel', 2]
+						},
+						{ $toString: "$dsItoId" },""
+                    ]
+                }
+            },
+            installationIds: {
+                $addToSet: { "k":"$installationId","v":"$installationName"}
+            }
+
+        }
+    },
+    {
+        $project:{"siteName" : 1, "dsIdsLow":1, "dsIdsHigh" :1, "instNameMap":{$arrayToObject:"$installationIds"}}
+    },
+    {
+        $merge: {
+            into: "alarm.metadataGen",
+            on: "_id",
+            whenMatched: "merge",
+            whenNotMatched: "insert"
+        }
+    }
+]);
+
+db.getCollection("alarm.metadataGen").updateMany({},{$pull: { dsIdsHigh: { $in:[""]},dsIdsLow: { $in:[""]},dsIdsMid: { $in:[""]} }});
+
+db.getCollection("alarm.tempAllAlarms").aggregate([
+    {
+        $match: { "data.resultTime": { $gt: ISODate("2020-09-00T08:00:00.000+0000") } }
+    },
+    {
+        $group:
+            {
+                _id: { $concat: [{ $toString: "$siteId" }, "_", { $dateToString: { format: "%Y_%m", date: "$data.resultTime", timezone: "+08:00" } }] },
+                siteId: { $first: "$siteId" },
+                L: {
+                    $sum: {
+                        $cond: [{
+                            $eq: ['$alarmLevel', 0]
+                        },
+                            1, 0
+                        ]
+                    }
+                },
+                M: {
+                    $sum: {
+                        $cond: [{
+                            $eq: ['$alarmLevel', 1]
+                        },
+                            1, 0
+                        ]
+                    }
+                },
+                H: {
+                    $sum: {
+                        $cond: [{
+                            $eq: ['$alarmLevel', 2]
+                        },
+                            1, 0
+                        ]
+                    }
+                }
+            }
+    },
+    {
+        $project: {
+            "siteId": 1,
+            "H": 1,
+            "M": 1,
+            "L": 1,
+            "yearMonth": { $substrBytes: ["$_id", 25, 7] },
+            alarmLevel: {
+                $cond: [{ $and: [{ $gte: ['$H', '$M'] }, { $gte: ['$H', '$L'] }] },
+                    2, { $cond: [{ $and: [{ $gte: ['$M', '$H'] }, { $gte: ['$M', '$L'] }] }, 1, 0] }
+                ]
+            },
+			count: { $size: "$set" },
+            curRes: true,
+            curResTime: { $toDate: { $max: "$set" } }
+
+        }
+    },
+    {
+        "$group": { "_id": "$siteId", "summaries": { "$addToSet": "$$ROOT" } }
+    },
+    {
+        $project: { "summaries._id": 0, "summaries.siteId": 0 }
+    },
+    {
+        $lookup:
+            {
+                from: "alarm.metadataGen",
+                localField: "_id",
+                foreignField: "_id",
+                as: "summariesList"
+            }
+    },
+    { "$replaceRoot": { "newRoot": { $mergeObjects: [{ $arrayElemAt: ["$summariesList", 0] }, "$$ROOT"] } } },
+    { $project: { "summariesList": 0 } },
+    { $sort : { _id: 1, summaries:1,  dsIdsHigh:1, dsIdsMid:1, dsIdsLow:1} },
+    {
+        $merge: {
+            into: "alarm.metadata",
+            on: "_id",
+            whenMatched: "merge",
+            whenNotMatched: "insert"
+        }
+    }
+]);
+db.getCollection("alarm.tempAllAlarms").drop();
+db.getCollection("alarm.metadataGen").drop();
