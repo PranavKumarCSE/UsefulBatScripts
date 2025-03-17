@@ -39,7 +39,7 @@ upstream        https://bitbucket.org/pranavinc/aq-demo/<RemoteBranchNameWherePR
 
 4.git fetch upstream
 
-5.git pull
+5.git pull upstream <remoteBranchName eg.develop>
 
 6.resolve the merge conflict in IDE
 
